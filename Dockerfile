@@ -1,28 +1,43 @@
+# Build stage for frontend assets
+FROM node:20-alpine as node-builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Verify build was successful
+RUN ls -la public/build/manifest.json
+
+# Production stage
 FROM richarvey/nginx-php-fpm:latest
 
-# Install Node.js and npm
-RUN apk add --no-cache nodejs npm
-
-# Set working directory
 WORKDIR /var/www/html
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Copy composer files first
+COPY composer*.json ./
 
-# Install npm dependencies
-RUN npm install
+# Install composer dependencies
+RUN composer install --no-dev --optimize-autoloader --no-scripts
 
 # Copy application files
 COPY . .
 
-# Install composer dependencies
-RUN composer install --no-dev --optimize-autoloader
+# Copy built assets from node builder (this is crucial!)
+COPY --from=node-builder /app/public/build ./public/build
 
-# Build frontend assets
-RUN npm run build
+# Verify assets were copied correctly
+RUN ls -la public/build/manifest.json
 
-# Clean up npm dependencies to reduce image size
-RUN npm prune --production && npm cache clean --force
+# Run composer scripts after copying all files
+RUN composer run-script post-autoload-dump
+
+# Set permissions
+RUN chown -R nginx:nginx /var/www/html && \
+    chmod -R 755 /var/www/html/storage && \
+    chmod -R 755 /var/www/html/bootstrap/cache
 
 # Image config
 ENV SKIP_COMPOSER 1
@@ -35,13 +50,6 @@ ENV REAL_IP_HEADER 1
 ENV APP_ENV production
 ENV APP_DEBUG false
 ENV LOG_CHANNEL stderr
-
-# Allow composer to run as root
 ENV COMPOSER_ALLOW_SUPERUSER 1
-
-# Ensure proper permissions
-RUN chown -R nginx:nginx /var/www/html && \
-    chmod -R 755 /var/www/html/storage && \
-    chmod -R 755 /var/www/html/bootstrap/cache
 
 CMD ["/start.sh"]
