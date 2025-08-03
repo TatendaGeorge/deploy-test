@@ -1,6 +1,7 @@
 FROM richarvey/nginx-php-fpm:latest
 
 COPY . .
+RUN npm install && npm run build
 
 # Image config
 ENV SKIP_COMPOSER 1
