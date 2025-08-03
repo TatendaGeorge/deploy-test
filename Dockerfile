@@ -20,9 +20,13 @@ COPY . .
 # Build frontend assets AFTER copying all files
 RUN npm run build
 
+# Move manifest from .vite subdirectory to build root where Laravel expects it
+RUN mv public/build/.vite/manifest.json public/build/manifest.json
+
 # Verify the manifest exists after build
 RUN echo "=== Checking build output ===" && \
     ls -la public/build/ && \
+    ls -la public/build/.vite/ && \
     cat public/build/manifest.json
 
 # Run composer scripts
