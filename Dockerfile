@@ -35,6 +35,9 @@ RUN composer run-script post-autoload-dump
 # Clean up npm to reduce image size
 RUN npm prune --production && npm cache clean --force
 
+# Configure nginx to run on port 80
+RUN sed -i 's/listen 80/listen 80/g' /etc/nginx/sites-available/default.conf
+
 # Set permissions
 RUN chown -R nginx:nginx /var/www/html && \
     chmod -R 755 /var/www/html/storage && \
@@ -43,6 +46,9 @@ RUN chown -R nginx:nginx /var/www/html && \
 # IMPORTANT: Verify files still exist after permissions change
 RUN echo "=== Final verification ===" && \
     ls -la public/build/manifest.json
+
+# Expose port 80
+EXPOSE 80
 
 # Image config
 ENV SKIP_COMPOSER 1
